@@ -9,10 +9,22 @@ import TestSummaryDashboard from '@/components/TestSummaryDashboard';
 import TestResultsDashboard from '@/components/TestResultsDashboard';
 import { Play, Database, Settings, BarChart3, TestTube } from 'lucide-react';
 
+interface TestStep {
+  id: number;
+  tc_id: string;
+  step_no: number;
+  test_step_description: string;
+  element_name: string;
+  action_type: string;
+  xpath: string;
+  values: string;
+}
+
 const Index = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedTestCase, setSelectedTestCase] = useState(null);
+  const [testSteps, setTestSteps] = useState<TestStep[]>([]);
 
   const steps = [
     { id: 1, name: 'Project Management', icon: Database, description: 'Create and manage test projects' },
@@ -44,6 +56,8 @@ const Index = () => {
         return (
           <TestConfigDashboard 
             selectedTestCase={selectedTestCase}
+            testSteps={testSteps}
+            onTestStepsChange={setTestSteps}
             onNext={() => setCurrentStep(4)}
             onBack={() => setCurrentStep(2)}
           />
@@ -53,6 +67,7 @@ const Index = () => {
           <TestSummaryDashboard 
             selectedProject={selectedProject}
             selectedTestCase={selectedTestCase}
+            testSteps={testSteps}
             onExecute={() => setCurrentStep(5)}
             onBack={() => setCurrentStep(3)}
           />

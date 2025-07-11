@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,8 @@ interface TestStep {
 
 interface TestConfigDashboardProps {
   selectedTestCase: any;
+  testSteps: TestStep[];
+  onTestStepsChange: (steps: TestStep[]) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -40,10 +41,11 @@ const ACTION_TYPES = [
 
 const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({ 
   selectedTestCase, 
+  testSteps,
+  onTestStepsChange,
   onNext, 
   onBack 
 }) => {
-  const [testSteps, setTestSteps] = useState<TestStep[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<TestStep | null>(null);
   const [formData, setFormData] = useState({
@@ -58,8 +60,8 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    if (selectedTestCase) {
-      // Mock data - replace with actual API call to fetch from database
+    if (selectedTestCase && testSteps.length === 0) {
+      // Only load mock data if no test steps exist
       const mockTestSteps: TestStep[] = [
         {
           id: 1,
@@ -82,9 +84,9 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
           values: ''
         }
       ];
-      setTestSteps(mockTestSteps);
+      onTestStepsChange(mockTestSteps);
     }
-  }, [selectedTestCase]);
+  }, [selectedTestCase, testSteps.length, onTestStepsChange]);
 
   const resetForm = () => {
     setFormData({
@@ -121,16 +123,17 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
       };
 
       if (editingStep) {
-        setTestSteps(testSteps.map(step => 
+        const updatedSteps = testSteps.map(step => 
           step.id === editingStep.id ? { ...newStep, id: editingStep.id } : step
-        ));
+        );
+        onTestStepsChange(updatedSteps);
         setEditingStep(null);
         toast({
           title: "Success",
           description: "Test step updated successfully!",
         });
       } else {
-        setTestSteps([...testSteps, newStep]);
+        onTestStepsChange([...testSteps, newStep]);
         toast({
           title: "Success",
           description: "Test step created successfully!",
@@ -164,7 +167,8 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
 
   const handleDeleteStep = async (stepId: number) => {
     try {
-      setTestSteps(testSteps.filter(step => step.id !== stepId));
+      const updatedSteps = testSteps.filter(step => step.id !== stepId);
+      onTestStepsChange(updatedSteps);
       toast({
         title: "Success",
         description: "Test step deleted successfully!",
