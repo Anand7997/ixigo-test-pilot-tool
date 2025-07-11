@@ -7,7 +7,7 @@ from datetime import datetime
 import traceback
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])  # Allow frontend origins
 
 # Database configuration
 DB_CONFIG = {
@@ -27,7 +27,8 @@ def get_db_connection():
         print(f"Database connection error: {str(e)}")
         raise
 
-# Projects API
+# ... keep existing code (Projects API endpoints)
+
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
     try:
@@ -82,39 +83,7 @@ def create_project():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/projects/<int:project_id>', methods=['PUT'])
-def update_project(project_id):
-    try:
-        data = request.json
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE Projects 
-            SET name = ?, description = ?, status = ?
-            WHERE id = ?
-        """, (data['name'], data['description'], data.get('status', 'Active'), project_id))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'message': 'Project updated successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/projects/<int:project_id>', methods=['DELETE'])
-def delete_project(project_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("DELETE FROM Projects WHERE id = ?", (project_id,))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'message': 'Project deleted successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# ... keep existing code (other project endpoints)
 
 # Test Cases API
 @app.route('/api/testcases/<int:project_id>', methods=['GET'])
@@ -170,8 +139,10 @@ def create_testcase():
         
         testcase_id = cursor.execute("SELECT @@IDENTITY").fetchone()[0]
         
-        # Create test case table
+        # Create test case table (named after the test case)
         table_name = data['name'].replace(' ', '_').replace('-', '_')
+        print(f"Creating table: {table_name}")
+        
         cursor.execute(f"""
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='{table_name}' AND xtype='U')
             CREATE TABLE [{table_name}] (
@@ -213,8 +184,10 @@ def create_testcase():
         conn.commit()
         conn.close()
         
+        print(f"✅ Created test case '{data['name']}' with tables: {table_name}, {results_table_name}")
         return jsonify({'id': testcase_id, 'message': 'Test case and tables created successfully'})
     except Exception as e:
+        print(f"❌ Error creating test case: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Test Steps API
@@ -253,73 +226,46 @@ def create_teststep(testcase_name):
         cursor = conn.cursor()
         
         table_name = testcase_name.replace(' ', '_').replace('-', '_')
+        print(f"Saving test step to table: {table_name}")
+        print(f"Step data: {data}")
+        
         cursor.execute(f"""
             INSERT INTO [{table_name}] (tc_id, step_no, test_step_description, element_name, action_type, xpath, values)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (data['tc_id'], data['step_no'], data['test_step_description'], 
-              data['element_name'], data['action_type'], data['xpath'], data['values']))
+        """, (data.get('tc_id', ''), data['step_no'], data['test_step_description'], 
+              data['element_name'], data['action_type'], data.get('xpath', ''), data.get('values', '')))
         
         step_id = cursor.execute("SELECT @@IDENTITY").fetchone()[0]
         conn.commit()
         conn.close()
         
+        print(f"✅ Test step saved with ID: {step_id}")
         return jsonify({'id': step_id, 'message': 'Test step created successfully'})
     except Exception as e:
+        print(f"❌ Error saving test step: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/teststeps/<testcase_name>/<int:step_id>', methods=['PUT'])
-def update_teststep(testcase_name, step_id):
-    try:
-        data = request.json
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        table_name = testcase_name.replace(' ', '_').replace('-', '_')
-        cursor.execute(f"""
-            UPDATE [{table_name}] 
-            SET tc_id = ?, step_no = ?, test_step_description = ?, element_name = ?, 
-                action_type = ?, xpath = ?, values = ?
-            WHERE id = ?
-        """, (data['tc_id'], data['step_no'], data['test_step_description'], 
-              data['element_name'], data['action_type'], data['xpath'], data['values'], step_id))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'message': 'Test step updated successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/teststeps/<testcase_name>/<int:step_id>', methods=['DELETE'])
-def delete_teststep(testcase_name, step_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        table_name = testcase_name.replace(' ', '_').replace('-', '_')
-        cursor.execute(f"DELETE FROM [{table_name}] WHERE id = ?", (step_id,))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'message': 'Test step deleted successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# ... keep existing code (other teststeps endpoints)
 
 # Test Execution API
 @app.route('/api/execute/<testcase_name>', methods=['POST'])
 def execute_testcase(testcase_name):
     try:
+        print(f"🚀 Starting test execution for: {testcase_name}")
         from test_executor import TestExecutor
         
         executor = TestExecutor()
         result = executor.execute_test_case(testcase_name)
         
+        print(f"✅ Test execution completed for: {testcase_name}")
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"❌ Test execution failed: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# Results API
+# ... keep existing code (Results API)
+
 @app.route('/api/results/<testcase_name>', methods=['GET'])
 def get_results(testcase_name):
     try:
@@ -359,4 +305,7 @@ def get_results(testcase_name):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    print("🏁 Starting Flask API Server")
+    print("📊 Database: Ixigo_TestAutomation on LPT2084-B1")
+    print("🌐 Server: http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)

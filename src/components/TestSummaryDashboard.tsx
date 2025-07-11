@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,95 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
 }) => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionProgress, setExecutionProgress] = useState(0);
+  const [executionLogs, setExecutionLogs] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const saveTestStepsToDatabase = async () => {
+    try {
+      console.log('Saving test steps to database...');
+      setExecutionLogs(prev => [...prev, 'Saving test steps to database...']);
+      
+      // Save each test step to the database table named after test case
+      for (const step of testSteps) {
+        const response = await fetch(`http://localhost:5000/api/teststeps/${selectedTestCase.name}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tc_id: step.tc_id,
+            step_no: step.step_no,
+            test_step_description: step.test_step_description,
+            element_name: step.element_name,
+            action_type: step.action_type,
+            xpath: step.xpath,
+            values: step.values
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save step ${step.step_no}`);
+        }
+      }
+      
+      setExecutionLogs(prev => [...prev, `✅ Saved ${testSteps.length} test steps to ${selectedTestCase.name} table`]);
+      return true;
+    } catch (error) {
+      console.error('Error saving test steps:', error);
+      setExecutionLogs(prev => [...prev, `❌ Error saving test steps: ${error}`]);
+      return false;
+    }
+  };
+
+  const executeSeleniumTest = async () => {
+    try {
+      console.log('Starting Selenium test execution...');
+      setExecutionLogs(prev => [...prev, 'Starting Selenium test execution...']);
+      setExecutionLogs(prev => [...prev, 'Launching Chrome browser...']);
+      
+      const response = await fetch(`http://localhost:5000/api/execute/${selectedTestCase.name}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to execute test');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setExecutionLogs(prev => [...prev, '✅ Test execution completed successfully']);
+        setExecutionLogs(prev => [...prev, `Status: ${result.status}`]);
+        setExecutionLogs(prev => [...prev, `Total Steps: ${result.total_steps}`]);
+        setExecutionLogs(prev => [...prev, `Passed: ${result.passed_steps}`]);
+        setExecutionLogs(prev => [...prev, `Failed: ${result.failed_steps}`]);
+        setExecutionLogs(prev => [...prev, `Results saved to ${selectedTestCase.name}_Results table`]);
+        
+        toast({
+          title: "Test Execution Completed",
+          description: result.message,
+        });
+      } else {
+        throw new Error(result.error || 'Test execution failed');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error executing test:', error);
+      setExecutionLogs(prev => [...prev, `❌ Error executing test: ${error}`]);
+      
+      toast({
+        title: "Test Execution Failed",
+        description: `Error: ${error}`,
+        variant: "destructive"
+      });
+      
+      return null;
+    }
+  };
 
   const handleExecuteTests = async () => {
     if (!selectedTestCase) {
@@ -57,34 +144,39 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
 
     setIsExecuting(true);
     setExecutionProgress(0);
+    setExecutionLogs([]);
 
     try {
-      // Simulate test execution progress
-      for (let i = 0; i <= 100; i += 10) {
-        setExecutionProgress(i);
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // Step 1: Save test steps to database
+      setExecutionProgress(20);
+      const savedSuccessfully = await saveTestStepsToDatabase();
+      
+      if (!savedSuccessfully) {
+        throw new Error('Failed to save test steps to database');
       }
 
-      toast({
-        title: "Test Execution Started",
-        description: "Chrome browser launched and test execution in progress...",
-      });
+      // Step 2: Execute Selenium test
+      setExecutionProgress(40);
+      const executionResult = await executeSeleniumTest();
+      
+      if (!executionResult) {
+        throw new Error('Test execution failed');
+      }
 
-      // Simulate completion
+      setExecutionProgress(100);
+      
+      // Navigate to results after a short delay
       setTimeout(() => {
-        setIsExecuting(false);
-        toast({
-          title: "Tests Completed",
-          description: `Results saved to ${selectedTestCase.name}_Results table`,
-        });
         onExecute();
       }, 2000);
 
     } catch (error) {
       setIsExecuting(false);
+      setExecutionProgress(0);
+      
       toast({
         title: "Execution Failed",
-        description: "Error occurred during test execution",
+        description: `Error: ${error}`,
         variant: "destructive"
       });
     }
@@ -247,7 +339,14 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
                 ></div>
               </div>
               <p className="text-center text-white">{executionProgress}% Complete</p>
-              <p className="text-center text-orange-300 text-sm">Chrome browser is executing test steps...</p>
+              
+              {/* Execution Logs */}
+              <div className="bg-black/50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <h4 className="text-white font-medium mb-2">Execution Logs:</h4>
+                {executionLogs.map((log, index) => (
+                  <p key={index} className="text-sm text-gray-300 font-mono">{log}</p>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
