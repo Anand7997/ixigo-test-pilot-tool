@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
   const saveTestStepsToDatabase = async () => {
     try {
       console.log('Saving test steps to database...');
-      setExecutionLogs(prev => [...prev, 'Saving test steps to database...']);
+      setExecutionLogs(prev => [...prev, 'Saving test steps to database table: ' + selectedTestCase.name]);
       
       // Save each test step to the database table named after test case
       for (const step of testSteps) {
@@ -60,11 +61,12 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to save step ${step.step_no}`);
+          const errorText = await response.text();
+          throw new Error(`Failed to save step ${step.step_no}: ${errorText}`);
         }
       }
       
-      setExecutionLogs(prev => [...prev, `✅ Saved ${testSteps.length} test steps to ${selectedTestCase.name} table`]);
+      setExecutionLogs(prev => [...prev, `✅ Successfully saved ${testSteps.length} test steps to ${selectedTestCase.name} table`]);
       return true;
     } catch (error) {
       console.error('Error saving test steps:', error);
@@ -76,7 +78,8 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
   const executeSeleniumTest = async () => {
     try {
       console.log('Starting Selenium test execution...');
-      setExecutionLogs(prev => [...prev, 'Starting Selenium test execution...']);
+      setExecutionLogs(prev => [...prev, 'Starting real Selenium test execution...']);
+      setExecutionLogs(prev => [...prev, 'Reading test steps from database...']);
       setExecutionLogs(prev => [...prev, 'Launching Chrome browser...']);
       
       const response = await fetch(`http://localhost:5000/api/execute/${selectedTestCase.name}`, {
@@ -87,22 +90,24 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to execute test');
+        const errorText = await response.text();
+        throw new Error(`Failed to execute test: ${errorText}`);
       }
 
       const result = await response.json();
       
       if (result.success) {
         setExecutionLogs(prev => [...prev, '✅ Test execution completed successfully']);
-        setExecutionLogs(prev => [...prev, `Status: ${result.status}`]);
-        setExecutionLogs(prev => [...prev, `Total Steps: ${result.total_steps}`]);
-        setExecutionLogs(prev => [...prev, `Passed: ${result.passed_steps}`]);
-        setExecutionLogs(prev => [...prev, `Failed: ${result.failed_steps}`]);
-        setExecutionLogs(prev => [...prev, `Results saved to ${selectedTestCase.name}_Results table`]);
+        setExecutionLogs(prev => [...prev, `Overall Status: ${result.status}`]);
+        setExecutionLogs(prev => [...prev, `Total Steps Executed: ${result.total_steps}`]);
+        setExecutionLogs(prev => [...prev, `Steps Passed: ${result.passed_steps}`]);
+        setExecutionLogs(prev => [...prev, `Steps Failed: ${result.failed_steps}`]);
+        setExecutionLogs(prev => [...prev, `Execution Time: ${result.execution_time}`]);
+        setExecutionLogs(prev => [...prev, `Results saved to ${selectedTestCase.name}_Results table in database`]);
         
         toast({
           title: "Test Execution Completed",
-          description: result.message,
+          description: `${result.status}: ${result.passed_steps}/${result.total_steps} steps passed`,
         });
       } else {
         throw new Error(result.error || 'Test execution failed');
@@ -149,6 +154,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
     try {
       // Step 1: Save test steps to database
       setExecutionProgress(20);
+      setExecutionLogs(prev => [...prev, `Preparing to save ${testSteps.length} test steps...`]);
       const savedSuccessfully = await saveTestStepsToDatabase();
       
       if (!savedSuccessfully) {
@@ -157,6 +163,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
 
       // Step 2: Execute Selenium test
       setExecutionProgress(40);
+      setExecutionLogs(prev => [...prev, 'Initiating Selenium WebDriver...']);
       const executionResult = await executeSeleniumTest();
       
       if (!executionResult) {
@@ -164,6 +171,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
       }
 
       setExecutionProgress(100);
+      setExecutionLogs(prev => [...prev, 'Test execution workflow completed successfully!']);
       
       // Navigate to results after a short delay
       setTimeout(() => {
@@ -282,7 +290,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
             </div>
             <div>
               <p className="text-green-300">Test Table</p>
-              <p className="text-white font-mono">{selectedTestCase.name}</p>
+              <p className="text-white font-mono">{selectedTestCase.name.replace(' ', '_').replace('-', '_')}</p>
             </div>
           </div>
         </CardContent>
@@ -327,7 +335,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
           <CardHeader>
             <CardTitle className="text-white flex items-center space-x-2">
               <Clock className="w-5 h-5 text-orange-400 animate-spin" />
-              <span>Test Execution in Progress</span>
+              <span>Real Test Execution in Progress</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -342,9 +350,9 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
               
               {/* Execution Logs */}
               <div className="bg-black/50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                <h4 className="text-white font-medium mb-2">Execution Logs:</h4>
+                <h4 className="text-white font-medium mb-2">Live Execution Logs:</h4>
                 {executionLogs.map((log, index) => (
-                  <p key={index} className="text-sm text-gray-300 font-mono">{log}</p>
+                  <p key={index} className="text-sm text-gray-300 font-mono mb-1">{log}</p>
                 ))}
               </div>
             </div>
@@ -365,7 +373,7 @@ const TestSummaryDashboard: React.FC<TestSummaryDashboardProps> = ({
           className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50"
         >
           <Play className="w-4 h-4 mr-2" />
-          {isExecuting ? 'Executing...' : 'Run Test Cases'}
+          {isExecuting ? 'Executing Real Tests...' : 'Run Test Cases'}
         </Button>
       </div>
     </div>

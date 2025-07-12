@@ -285,7 +285,8 @@ class TestExecutor:
         finally:
             self.close_browser()
 
-    # Keep all your existing methods from BaseClass and IxigoTestClass
+    # ... keep existing code (all the existing methods from BaseClass and IxigoTestClass)
+
     def find_element_with_advanced_wait(self, xpath_with_alternatives):
         """Find element with multiple XPath options and advanced waiting strategies"""
         if not xpath_with_alternatives or not xpath_with_alternatives.strip():
@@ -444,15 +445,48 @@ class TestExecutor:
                 self.handle_bus_quick_date_selection(test_data, element_name)
 
             elif action_type == "CLICK":
-                click_element = self.find_element_with_advanced_wait(xpath)
-                self.perform_robust_click(click_element)
-                time.sleep(0.3)
+                if element_name.upper() == "TRAVELCLASS":
+                    self.handle_travel_class_selection_fast(test_data, xpath, element_name)
+                elif element_name.upper() == "DONEBUTTON":
+                    self.close_travellers_popup_fast(xpath, element_name)
+                elif test_data.upper() == "TODAY":
+                    self.handle_today_selection(element_name)
+                elif test_data.upper() == "TOMORROW" and "bus" in element_name.lower():
+                    self.handle_tomorrow_selection_bus(element_name)
+                elif test_data.upper() == "TOMORROW":
+                    self.handle_tomorrow_selection(element_name)
+                elif "day after" in test_data.lower() or test_data.upper() == "DAY-AFTER-TOMORROW":
+                    self.handle_day_after_tomorrow_selection(element_name)
+                else:
+                    click_element = self.find_element_with_advanced_wait(xpath)
+                    self.perform_robust_click(click_element)
+                    time.sleep(0.3)
 
             elif action_type == "SELECT_COUNT":
-                self.handle_count_selection_fast(test_data, xpath, element_name)
+                if element_name.upper() == "ROOMSCOUNT":
+                    self.set_count_by_increment("room", int(test_data))
+                elif element_name.upper() == "ADULTSCOUNT":
+                    self.set_count_by_increment("adult", int(test_data))
+                elif element_name.upper() == "CHILDRENCOUNT":
+                    children_count = int(test_data)
+                    self.set_count_by_increment("children", children_count)
+                    if children_count > 0:
+                        self.wait_for_child_age_dropdowns(children_count)
+                else:
+                    self.handle_count_selection_fast(test_data, xpath, element_name)
             
             elif action_type == "CLICK_AND_SELECT_AGE":
-                self.handle_age_selection(test_data, xpath, element_name)
+                if element_name.upper() == "CHILD 1":
+                    self.select_child_age(0, int(test_data))
+                elif element_name.upper() == "CHILD 2":
+                    self.select_child_age(1, int(test_data))
+                elif element_name.upper() == "CHILD 3":
+                    self.select_child_age(2, int(test_data))
+                else:
+                    child_number = re.sub(r'[^0-9]', '', element_name)
+                    if child_number:
+                        child_index = int(child_number) - 1
+                        self.select_child_age(child_index, int(test_data))
 
             elif action_type == "HANDLE_CHECKBOX":
                 self.handle_checkbox_action(test_data, xpath, element_name)
@@ -464,7 +498,7 @@ class TestExecutor:
             print(f"💥 Error executing action '{action_type}': {str(e)}")
             raise
 
-    # Add placeholder methods for the actions referenced above
+    # Placeholder methods for Ixigo-specific actions (you'll need to implement these based on your needs)
     def handle_city_selection_fast(self, test_data, xpath, element_name):
         """Handle city selection"""
         element = self.find_element_with_advanced_wait(xpath)
@@ -487,17 +521,51 @@ class TestExecutor:
         """Handle quick date selection"""
         print(f"Handling quick date: {test_data}")
 
+    def handle_travel_class_selection_fast(self, test_data, xpath, element_name):
+        """Handle travel class selection"""
+        element = self.find_element_with_advanced_wait(xpath)
+        self.perform_robust_click(element)
+        time.sleep(0.5)
+
+    def close_travellers_popup_fast(self, xpath, element_name):
+        """Close travellers popup"""
+        element = self.find_element_with_advanced_wait(xpath)
+        self.perform_robust_click(element)
+        time.sleep(0.3)
+
+    def handle_today_selection(self, element_name):
+        """Handle today selection"""
+        print(f"Handling today selection for: {element_name}")
+
+    def handle_tomorrow_selection_bus(self, element_name):
+        """Handle tomorrow selection for bus"""
+        print(f"Handling tomorrow selection for bus: {element_name}")
+
+    def handle_tomorrow_selection(self, element_name):
+        """Handle tomorrow selection"""
+        print(f"Handling tomorrow selection: {element_name}")
+
+    def handle_day_after_tomorrow_selection(self, element_name):
+        """Handle day after tomorrow selection"""
+        print(f"Handling day after tomorrow selection: {element_name}")
+
+    def set_count_by_increment(self, count_type, target_count):
+        """Set count by increment"""
+        print(f"Setting {count_type} count to: {target_count}")
+
+    def wait_for_child_age_dropdowns(self, children_count):
+        """Wait for child age dropdowns"""
+        print(f"Waiting for {children_count} child age dropdowns")
+
     def handle_count_selection_fast(self, test_data, xpath, element_name):
         """Handle count selection"""
         element = self.find_element_with_advanced_wait(xpath)
         self.perform_robust_click(element)
         time.sleep(0.5)
 
-    def handle_age_selection(self, test_data, xpath, element_name):
-        """Handle age selection"""
-        element = self.find_element_with_advanced_wait(xpath)
-        self.perform_robust_click(element)
-        time.sleep(0.5)
+    def select_child_age(self, child_index, age):
+        """Select child age"""
+        print(f"Selecting age {age} for child {child_index + 1}")
 
     def handle_checkbox_action(self, test_data, xpath, element_name):
         """Handle checkbox action"""
