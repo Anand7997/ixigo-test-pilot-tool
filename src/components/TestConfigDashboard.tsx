@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,34 +60,7 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (selectedTestCase && testSteps.length === 0) {
-      // Only load mock data if no test steps exist
-      const mockTestSteps: TestStep[] = [
-        {
-          id: 1,
-          tc_id: 'TC001',
-          step_no: 1,
-          test_step_description: 'Open Ixigo website',
-          element_name: 'Browser',
-          action_type: 'OPEN_BROWSER',
-          xpath: '',
-          values: 'https://www.ixigo.com'
-        },
-        {
-          id: 2,
-          tc_id: 'TC001',
-          step_no: 2,
-          test_step_description: 'Click on Flights tab',
-          element_name: 'FlightsTab',
-          action_type: 'CLICK',
-          xpath: '//div[@data-testid="flights-tab"]',
-          values: ''
-        }
-      ];
-      onTestStepsChange(mockTestSteps);
-    }
-  }, [selectedTestCase, testSteps.length, onTestStepsChange]);
+  // Removed the useEffect that was loading mock data
 
   const resetForm = () => {
     setFormData({
@@ -165,15 +139,27 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
     setIsCreateModalOpen(true);
   };
 
-  const handleDeleteStep = async (stepId: number) => {
+  const handleDeleteStep = (stepId: number) => {
+    console.log('Attempting to delete step with ID:', stepId);
+    console.log('Current test steps:', testSteps);
+    
     try {
       const updatedSteps = testSteps.filter(step => step.id !== stepId);
-      onTestStepsChange(updatedSteps);
+      console.log('Updated steps after deletion:', updatedSteps);
+      
+      // Reorder step numbers after deletion
+      const reorderedSteps = updatedSteps.map((step, index) => ({
+        ...step,
+        step_no: index + 1
+      }));
+      
+      onTestStepsChange(reorderedSteps);
       toast({
         title: "Success",
         description: "Test step deleted successfully!",
       });
     } catch (error) {
+      console.error('Error deleting step:', error);
       toast({
         title: "Error",
         description: "Failed to delete test step",
@@ -374,7 +360,7 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-purple-300 hover:text-white"
+                          className="text-purple-300 hover:text-white hover:bg-purple-500/20"
                           onClick={() => handleEditStep(step)}
                         >
                           <Edit className="w-4 h-4" />
@@ -382,7 +368,7 @@ const TestConfigDashboard: React.FC<TestConfigDashboardProps> = ({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-red-400 hover:text-red-300"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
                           onClick={() => handleDeleteStep(step.id)}
                         >
                           <Trash2 className="w-4 h-4" />
